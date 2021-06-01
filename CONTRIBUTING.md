@@ -11,6 +11,24 @@ Bloom is a tool which will help you do the release as well as open a pull-reques
 It will also assist adding documentation and source entries.
 There are [several helpful tutorials](http://wiki.ros.org/bloom/Tutorials) which provide instructions on how to do things like [make a first release](http://wiki.ros.org/bloom/Tutorials/FirstTimeRelease). 
 
+### Guidelines for Package Naming
+
+When releasing a new package into a distribution, please follow the naming guidelines set out in the [ROS REP 144: ROS Package Naming](https://www.ros.org/reps/rep-0144.html).
+
+### Binary Release Follow-up
+
+Once a `ros/rosdisto` pull request is merged, the package will be built in the ROS build farm.
+It is important that the author follow up to verify that the package has successfully built for a particular distribution.
+This can be checked via both the distribution status page:
+* For a ROS Distribution, use `repositories.ros.org/status_page/`, for example [ROS packages for Melodic](http://repositories.ros.org/status_page/ros_melodic_default.html).
+* For a ROS 2 Distribution, use `repo.ros2.org/status_page/`, for example [ROS packages for Foxy](http://repo.ros2.org/status_page/ros_foxy_default.html).
+
+Additionally, it may be necessary to determine build failures, these jobs are located at:
+* [ROS 2 Buildfarm](http://build.ros2.org/)
+* [ROS Buildfarm](http://build.ros.org/)
+
+If a package continuously fails to build, the ROS Boss for that distribution may choose to revert the pull request that introduced it.
+Or they may take [other actions](https://github.com/ros-infrastructure/ros_buildfarm/blob/master/doc/ongoing_operations.rst) to avoid repeated failures.
 
 Documentation Indexing
 ----------------------
@@ -58,6 +76,7 @@ Guidelines for rosdep rules
     * Ubuntu and Debian are top priority.
     * Fedora and Gentoo have packaging jobs and should be filled in if they are available.
     * OSX is also nice to have.
+    * NixOS is not required, but may be added if desired
     * If specific versions are called out, there should be coverage of all versions currently targeted by supported ROS distros.
      * If there's a new distro in prerelease adding a rule for it is fine.
        However please don't target 'sid' as it's a rolling target and when the keys change our database gets out of date.
@@ -76,8 +95,8 @@ Keys in the rosdep database are required to come from packages contained in the 
 
 #### Debian
 
-* Debian Repositories: Main, Universe, or Multiverse
-* ROS Sources: https://wiki.ros.org/Installation/Ubuntu/Sources
+* Debian Repositories: Main, Contrib, or Non-Free
+* ROS Sources: The Ubuntu guide also works for currently supported Debian distributions: https://wiki.ros.org/Installation/Ubuntu/Sources
 
 #### Fedora
 
@@ -116,6 +135,16 @@ Work has been proposed to add a separate installer for AUR packages [ros-infrast
 
 * FreeBSD project pkg repository: main or quarterly
 * A database of FreeBSD packages is available at https://freshports.org
+
+#### NixOS/nixpkgs
+
+* [NixOS unstable channel](https://github.com/NixOS/nixpkgs/tree/nixos-unstable), search available at https://search.nixos.org/packages
+* [nix-ros-overlay](https://github.com/lopsided98/nix-ros-overlay)
+
+#### openSUSE
+
+* openSUSE Repositories: Pool and Updates
+* You can search for packages on https://software.opensuse.org
 
 #### pip
 
@@ -159,6 +188,26 @@ python3-foobar-pip:
       packages: [foobar]
 ```
 
+In contrast to normal python entries, which are often different for python 2 and 3, pip entries for python 2 and 3 are almost always identical.
+Hence no new entry would be needed. Though this would leave us with a mess of `python3-*`, `python-*-pip` and `python3-*-pip` entries.
+To prevent this, the `python3-*-pip` entry should be mapped to the legacy `python-*-pip` entry by using yaml anchors and aliases.
+(Preferably this was the other way around. So the `python3-*-pip` entry containing the contents and the anchor and the legacy `python-*-pip` entry being aliased to it.
+Though the anchor should be defined before the anchor is used and `python3-` entries come after `python-` entries in alphabetical order.)
+
+For example:
+
+```yaml
+python-foobar-pip: &migrate_eol_2025_04_30_python3_foobar_pip # Anchor
+  ubuntu:
+    pip:
+      packages: [foobar]
+python3-foobar-pip: *migrate_eol_2025_04_30_python3_foobar_pip # Alias
+```
+
+The anchor/alias should be formatted as `migrate_eol_<YYYY>_<MM>_<DD>_<NEW_KEY_UNDERSCORED>`.
+
+The EOL date of the entry should match the EOL date of the longest supported current platform.
+
 Some existing rules do not have `python-` or `python3-` prefixes, but this is no longer recommended.
 If the package ever becomes available in Debian or Ubuntu, the `python3-` prefix ensures that the `pip` key is next to it alphabetically.
 The `-pip` key should be removed when the package becomes available on all platforms, and all existing users of the `-pip` key should migrate to the new key.
@@ -167,7 +216,7 @@ How to submit pull requests
 ---------------------------
 
 When submitting pull requests it is expected that they pass the unit tests for formatting. 
-The unit tests enforce alphabetization of elements and a consistant formatting to keep merging as clean as possible. 
+The unit tests enforce alphabetization of elements and a consistent formatting to keep merging as clean as possible. 
 
 To run the tests run ``nosetests`` in the root of the repository.
 These tests require several dependencies that can be installed either from the ROS repositories or via pip(list built based on the content of [.travis.yaml](https://github.com/ros/rosdistro/blob/master/.travis.yml):
